@@ -14,5 +14,14 @@ The dataset is too large to be stored in this repository.
 Download it from:
 👉 https://cicresearch.ca/CICDataset/CIC-IDS-2017/
 
+---
 
+## 🚀 How to Run
+
+```bash
+cd backend
+uvicorn app:app --reload
+```
+
+Open **http://127.0.0.1:8000** in your browser.
 
