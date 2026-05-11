@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Threat Monitoring Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-950 text-white min-h-screen">
+
+    <!-- HEADER -->
+    <header class="border-b border-gray-800 p-6">
+        <h1 class="text-4xl font-bold text-cyan-400">AI Threat Monitoring Dashboard</h1>
+        <p class="text-gray-400 mt-2">Real-Time Intrusion Detection System</p>
+    </header>
+
+    <!-- STATS -->
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
+        <div class="bg-gray-900 rounded-2xl p-6 shadow-lg">
+            <h2 class="text-gray-400 text-lg">Total Traffic</h2>
+            <p id="totalTraffic" class="text-5xl font-bold mt-3">0</p>
+        </div>
+        <div class="bg-gray-900 rounded-2xl p-6 shadow-lg border-l-4 border-red-500">
+            <h2 class="text-gray-400 text-lg">Threats Detected</h2>
+            <p id="threatCount" class="text-5xl font-bold text-red-400 mt-3">0</p>
+        </div>
+        <div class="bg-gray-900 rounded-2xl p-6 shadow-lg border-l-4 border-green-500">
+            <h2 class="text-gray-400 text-lg">Benign Traffic</h2>
+            <p id="benignCount" class="text-5xl font-bold text-green-400 mt-3">0</p>
+        </div>
+    </section>
+
+    <!-- ALERT BOX -->
+    <section class="px-6">
+        <div id="alertBox" class="hidden bg-red-600 p-4 rounded-2xl mb-6 text-lg font-semibold shadow-lg animate-pulse">
+            <!-- Alert message injected here -->
+        </div>
+    </section>
+
+    <!-- LIVE TABLE -->
+    <section class="p-6">
+        <div class="bg-gray-900 rounded-2xl overflow-hidden shadow-lg border border-gray-800">
+            <div class="p-5 border-b border-gray-800">
+                <h2 class="text-2xl font-bold text-cyan-400">Live Network Traffic</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-gray-800 text-gray-300">
+                        <tr>
+                            <th class="p-4">Timestamp</th>
+                            <th class="p-4">Type</th>
+                            <th class="p-4">Severity</th>
+                            <th class="p-4">Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trafficTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        let totalTraffic = 0;
+        let threatCount = 0;
+        let benignCount = 0;
+
+        // Initialize WebSocket
+        const socket = new WebSocket(`ws://${window.location.host}/ws`);
+
+        socket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            totalTraffic++;
+
+            // Detect if threat (Supports both "BENIGN" string or 0/1 logic)
+            const isThreat = data.prediction !== "BENIGN" && data.prediction !== 0;
+
+            if (isThreat) {
+                threatCount++;
+                showAlert(`⚠ ${data.prediction || 'ATTACK'} DETECTED | Severity: ${data.severity}`);
+            } else {
+                benignCount++;
+            }
+
+            // Update UI Counters
+            document.getElementById("totalTraffic").innerText = totalTraffic;
+            document.getElementById("threatCount").innerText = threatCount;
+            document.getElementById("benignCount").innerText = benignCount;
+
+            addTrafficRow(data, isThreat);
+        };
+
+        function addTrafficRow(data, isThreat) {
+            const table = document.getElementById("trafficTable");
+            const row = document.createElement("tr");
+
+            row.className = isThreat ? "bg-red-900/30 border-b border-gray-800" : "bg-gray-900 border-b border-gray-800";
+
+            let sevClass = data.severity === "HIGH" ? "bg-red-600" : 
+                           data.severity === "MEDIUM" ? "bg-yellow-500 text-black" : "bg-green-600";
+
+            row.innerHTML = `
+                <td class="p-4 text-gray-400">${data.timestamp || new Date().toLocaleTimeString()}</td>
+                <td class="p-4 font-bold ${isThreat ? 'text-red-400' : 'text-green-400'}">${data.prediction}</td>
+                <td class="p-4"><span class="${sevClass} px-3 py-1 rounded-full text-xs font-bold">${data.severity}</span></td>
+                <td class="p-4">${data.confidence}%</td>
+            `;
+
+            table.prepend(row);
+            if (table.rows.length > 15) table.deleteRow(15);
+        }
+
+        function showAlert(message) {
+            const box = document.getElementById("alertBox");
+            box.innerText = message;
+            box.classList.remove("hidden");
+            setTimeout(() => box.classList.add("hidden"), 3000);
+        }
+    </script>
+</body>
+</html>

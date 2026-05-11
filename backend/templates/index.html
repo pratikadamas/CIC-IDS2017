@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8" />
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0" />
+
+  <title>
+    AI Threat Monitoring Dashboard
+  </title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+</head>
+
+<body class="bg-gray-950 text-white min-h-screen">
+
+  <!-- HEADER -->
+  <header class="border-b border-gray-800 p-6">
+
+    <h1 class="text-4xl font-bold text-cyan-400">
+      AI Threat Monitoring Dashboard
+    </h1>
+
+    <p class="text-gray-400 mt-2">
+      Real-Time Intrusion Detection System
+    </p>
+
+  </header>
+
+  STATS
+  <section
+    class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
+
+    <!-- TOTAL -->
+    <div
+      class="bg-gray-900 rounded-2xl p-6 shadow-lg">
+
+      <h2 class="text-gray-400 text-lg">
+        Total Traffic
+      </h2>
+
+      <p id="totalTraffic"
+         class="text-5xl font-bold mt-3">
+         0
+      </p>
+
+    </div>
+
+    <!-- THREATS -->
+    <div
+      class="bg-gray-900 rounded-2xl p-6 shadow-lg">
+
+      <h2 class="text-gray-400 text-lg">
+        Threats Detected
+      </h2>
+
+      <p id="threatCount"
+         class="text-5xl font-bold text-red-400 mt-3">
+         0
+      </p>
+
+    </div>
+
+    <!-- BENIGN -->
+    <div
+      class="bg-gray-900 rounded-2xl p-6 shadow-lg">
+
+      <h2 class="text-gray-400 text-lg">
+        Benign Traffic
+      </h2>
+
+      <p id="benignCount"
+         class="text-5xl font-bold text-green-400 mt-3">
+         0
+      </p>
+
+    </div>
+
+  </section>
+
+  <!-- ALERT BOX -->
+  <section class="px-6">
+
+    <div id="alertBox"
+      class="hidden bg-red-600 p-4 rounded-2xl mb-6 text-lg font-semibold shadow-lg">
+
+    </div>
+
+  </section>
+
+  <!-- LIVE TABLE -->
+  <section class="p-6">
+
+    <div
+      class="bg-gray-900 rounded-2xl overflow-hidden shadow-lg">
+
+      <!-- TABLE HEADER -->
+      <div
+        class="p-5 border-b border-gray-800">
+
+        <h2
+          class="text-2xl font-bold text-cyan-400">
+
+          Live Network Traffic
+
+        </h2>
+
+      </div>
+
+      <!-- TABLE -->
+      <div class="overflow-x-auto">
+
+        <table class="w-full text-left">
+
+          <!-- HEADER -->
+          <thead
+            class="bg-gray-800 text-gray-300">
+
+            <tr>
+
+              <th class="p-4">
+                Timestamp
+              </th>
+
+              <th class="p-4">
+                Prediction
+              </th>
+
+              <th class="p-4">
+                Severity
+              </th>
+
+              <th class="p-4">
+                Confidence
+              </th>
+
+              <th class="p-4">
+                Attack Probability
+              </th>
+
+            </tr>
+
+          </thead>
+
+          <!-- BODY -->
+          <tbody id="trafficTable">
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- JAVASCRIPT -->
+  <script>
+
+    // ======================
+    // COUNTERS
+    // ======================
+
+    let totalTraffic = 0;
+    let threatCount = 0;
+    let benignCount = 0;
+
+    // ======================
+    // WEBSOCKET
+    // ======================
+
+    const socket = new WebSocket(
+      `ws://${window.location.host}/ws`
+    );
+
+    socket.onopen = () => {
+
+      console.log(
+        "WebSocket Connected"
+      );
+
+    };
+
+    // ======================
+    // RECEIVE DATA
+    // ======================
+
+    socket.onmessage = function(event) {
+
+      const data = JSON.parse(
+        event.data
+      );
+
+      console.log(data);
+
+      totalTraffic++;
+
+      // ======================
+      // ATTACK / BENIGN
+      // ======================
+
+      if (data.prediction === 1) {
+
+        threatCount++;
+
+        showAlert(
+
+          `⚠ ${data.severity} THREAT DETECTED
+          | Confidence: ${data.confidence}%
+          | Attack Probability:
+          ${data.attack_probability}%`
+
+        );
+
+      } else {
+
+        benignCount++;
+
+      }
+
+      // ======================
+      // UPDATE COUNTERS
+      // ======================
+
+      document.getElementById(
+        "totalTraffic"
+      ).innerText = totalTraffic;
+
+      document.getElementById(
+        "threatCount"
+      ).innerText = threatCount;
+
+      document.getElementById(
+        "benignCount"
+      ).innerText = benignCount;
+
+      // ======================
+      // ADD ROW
+      // ======================
+
+      addTrafficRow(data);
+
+    };
+
+    // ======================
+    // TABLE ROW
+    // ======================
+
+    function addTrafficRow(data) {
+
+      const table =
+        document.getElementById(
+          "trafficTable"
+        );
+
+      const row =
+        document.createElement("tr");
+
+      // ======================
+      // ROW COLORS
+      // ======================
+
+      row.className =
+
+        data.prediction === 1
+
+        ? "bg-red-900 border-b border-gray-800"
+
+        : "bg-green-900 border-b border-gray-800";
+
+      // ======================
+      // SEVERITY COLORS
+      // ======================
+
+      let severityColor = "";
+
+      if (data.severity === "HIGH") {
+
+        severityColor =
+          "bg-red-600";
+
+      }
+
+      else if (
+        data.severity === "MEDIUM"
+      ) {
+
+        severityColor =
+          "bg-yellow-500 text-black";
+
+      }
+
+      else {
+
+        severityColor =
+          "bg-green-600";
+
+      }
+
+      // ======================
+      // HTML
+      // ======================
+
+      row.innerHTML = `
+
+        <td class="p-4">
+          ${data.timestamp}
+        </td>
+
+        <td class="p-4 font-bold">
+
+          ${data.label}
+
+        </td>
+
+        <td class="p-4">
+
+          <span class="
+            ${severityColor}
+            px-3 py-1
+            rounded-full
+            text-sm
+            font-bold
+          ">
+
+            ${data.severity}
+
+          </span>
+
+        </td>
+
+        <td class="p-4">
+
+          ${data.confidence}%
+
+        </td>
+
+        <td class="p-4 text-red-300">
+
+          ${data.attack_probability}%
+
+        </td>
+
+      `;
+
+      // newest first
+      table.prepend(row);
+
+      // keep only 20 rows
+      if (table.rows.length > 20) {
+
+        table.deleteRow(20);
+
+      }
+
+    }
+
+    // ======================
+    // ALERT
+    // ======================
+
+    function showAlert(message) {
+
+      const alertBox =
+        document.getElementById(
+          "alertBox"
+        );
+
+      alertBox.innerText = message;
+
+      alertBox.classList.remove(
+        "hidden"
+      );
+
+      setTimeout(() => {
+
+        alertBox.classList.add(
+          "hidden"
+        );
+
+      }, 3000);
+
+    }
+
+  </script>
+
+</body>
+</html>
