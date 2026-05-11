@@ -4,3 +4,8 @@ scikit-learn
 seaborn
 matplotlib
 imbalanced-learn
+fastapi
+uvicorn
+jinja2
+joblib
+
